@@ -3,7 +3,8 @@ import { GameView } from "./GameView";
 import { useSearchParams } from "next/navigation";
 
 import io from "socket.io-client";
-const socket = io("http://localhost:4000");
+//const socket = io("http://localhost:4000");
+const socket = io("https://battleship-server-test-2hfks02j5-ravarty.vercel.app/");
 
 const AVAILABLE_SHIPS = [
 	{
