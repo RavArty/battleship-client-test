@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { GameView } from "./GameView";
 import { useSearchParams } from "next/navigation";
+import useSocket from "@/hooks/useSocket";
 
 import io from "socket.io-client";
 //const socket = io("http://localhost:4000");
-const socket = io("https://battleship-server-test.vercel.app/");
+//const socket = io("https://battleship-server-test.vercel.app/");
 
 const AVAILABLE_SHIPS = [
 	{
@@ -35,8 +36,10 @@ const AVAILABLE_SHIPS = [
 ];
 
 export const Game = () => {
+	useSocket();
 	// const router = useRouter();
 	//	const activePlayer = useRef(1);
+	const socketRef = useRef();
 	const playerReady = useRef(false);
 	const [gameState, setGameState] = useState("placement");
 	const [isShipPlaced, setIsShipPlaced] = useState(false);
@@ -73,18 +76,19 @@ export const Game = () => {
 	//console.log("turn: ", turn);
 	// Check if either player or computer ended the game
 	useEffect(() => {
+		socketRef.current = io();
 		if (paramsRoom) {
 			// means you are player 2
 			setPlayer("computer");
 			setTurn("computer");
 			setMyTurn(false);
-			socket.emit("join", paramsRoom);
+			socketRef.current.emit("join", paramsRoom);
 			setRoom(paramsRoom);
 			//setMyTurn(false);
 		} else {
 			// means you are player 1
 			const newRoomName = random();
-			socket.emit("create", newRoomName);
+			socketRef.current.emit("create", newRoomName);
 			setRoom(newRoomName);
 			setMyTurn(true);
 			//setMyTurn(true);
@@ -92,7 +96,7 @@ export const Game = () => {
 	}, [paramsRoom]);
 
 	useEffect(() => {
-		socket.on("playerTurn", (json) => {
+		socketRef.current.on("playerTurn", (json) => {
 			//	console.log("player: ", player);
 			//	console.log("playerTurn socket: ", JSON.parse(json));
 			const parsedJson = JSON.parse(json);
@@ -102,7 +106,7 @@ export const Game = () => {
 			// setTurnData(json);
 		});
 
-		socket.on("startGame", (json) => {
+		socketRef.current.on("startGame", (json) => {
 			const inputData = JSON.parse(json);
 			console.log({ inputData });
 			//console.log("startGame socket");
@@ -122,12 +126,12 @@ export const Game = () => {
 		// 	restart();
 		// });
 
-		socket.on("opponent_joined", () => {
+		socketRef.current.on("opponent_joined", () => {
 			//	console.log("joined");
 			//setHasOpponent(true);
 			setShare(false);
 		});
-		socket.on("gameOver", () => {
+		socketRef.current.on("gameOver", () => {
 			if (player === "player") {
 				setWinner("computer");
 			} else {
@@ -135,10 +139,10 @@ export const Game = () => {
 			}
 		});
 		return () => {
-			socket.off("playerTurn");
-			socket.off("startGame");
-			socket.off("opponent_joined");
-			socket.off("gameOver");
+			socketRef.current.off("playerTurn");
+			socketRef.current.off("startGame");
+			socketRef.current.off("opponent_joined");
+			socketRef.current.off("gameOver");
 		};
 	}, [player]);
 
@@ -248,7 +252,7 @@ export const Game = () => {
 			sendShips = placedShips2;
 		}
 		playerReady.current = true;
-		socket.emit("reqStartGame", JSON.stringify({ room, ships: sendShips, player: player }));
+		socketRef.current.emit("reqStartGame", JSON.stringify({ room, ships: sendShips, player: player }));
 	};
 
 	const changeTurn = (newHits) => {
@@ -259,14 +263,14 @@ export const Game = () => {
 		//	checkIfGameOver();
 		// activePlayer.current = 2;
 		if (checkIfGameOver(turn, newHits)) {
-			socket.emit("reqGameOver", room);
+			socketRef.current.emit("reqGameOver", room);
 			return;
 		}
 		// console.log("proceed: ", gameState);
 		//setGameState((oldGameState) => (oldGameState === "player-turn" ? "computer-turn" : "player-turn"));
 		//	if (turn === "player") {
 		// setTurn((oldTurn) => (oldTurn === "player" ? "computer" : "player"));
-		socket.emit("reqTurn", JSON.stringify({ hits: newHits, player, room }));
+		socketRef.current.emit("reqTurn", JSON.stringify({ hits: newHits, player, room }));
 		//	}
 	};
 	//console.log({ gameState });
